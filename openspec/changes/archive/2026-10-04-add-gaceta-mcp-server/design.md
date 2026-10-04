@@ -20,3 +20,6 @@ Sitio Drupal 7 + jQuery. El script `busqueda_avanzada.min.js` hace `$.ajax POST`
 - Cambio de HTML/endpoints del sitio → parsers aislados con fixtures y tests; errores explícitos.
 - Sitio lento (curl directo hizo timeout) → timeouts amplios, reintentos, uso moderado.
 - Cuerpo vacío si faltan cookies/cabeceras → GET previo y cabeceras idénticas a la UI; verificar en tarea 2.
+
+## Corrección posterior: `getdatagacetasa`
+Inicialmente se supuso que devolvía el "sumario" de una gaceta. La investigación mostró que alimenta la página `gacetas-oficiales-1990-2008`: busca en el archivo histórico (hasta 2008) y cada resultado trae un índice por organismo. Sus bloques usan la clase `result-gacetagsa` (no `result-gaceta`), por lo que el parser original devolvía siempre vacío. La herramienta se renombró a `search_gacetas_historicas`. Las gacetas actuales y por mes siguen cubiertas por `list_ediciones` y `search_gacetas`.

@@ -94,11 +94,11 @@ Same JSON in `.vscode/mcp.json`, but with `"servers"` instead of `"mcpServers"` 
 | `list_ediciones(periodo)` | **Dates**: "which gacetas are out today", `ayer`, `este mes`, `octubre 2025`, `2026-10-02` | `/es/ediciones-del-mes` |
 | `search_normas(query, topics_, tipo_norma, estado, organismo, anno, numero, identificador, page)` | **Content / topic**: "gacetas about employment contracts in mipymes" | `/es/busqueda-avanzada` |
 | `search_gacetas(numero, anno, tipo_edicion, page)` | A specific gaceta **number** | `/es/busqueda-avanzada` |
-| `get_gaceta_indice(...)` | Table of contents of a gaceta (see known issues) | `getdatagacetasa` |
+| `search_gacetas_historicas(numero, anno, tipo_edicion, texto, page)` | **Historical archive** (up to 2008): gacetas with their index of issuing bodies and norms; `texto` searches that index | `/es/gacetas-oficiales-1990-2008` |
 | `list_catalogs()` | Valid IDs for edition types, norm types, statuses and issuing bodies | `/es/busqueda-avanzada` |
 | `get_topics()` / `set_topics(new_topics)` | Read / change your topics of interest | local file |
 
-The server instructions tell the agent how to route a request: date-based questions go to `list_ediciones`, content-based questions go to `search_normas`, and a specific number goes to `search_gacetas`.
+The server instructions tell the agent how to route a request: date-based questions go to `list_ediciones`, content-based questions go to `search_normas`, and a specific number goes to `search_gacetas`, and old gacetas (before 2009) go to `search_gacetas_historicas`.
 
 ### Topics of interest
 
@@ -111,7 +111,8 @@ Before a content search, the agent is instructed to ask whether you want a speci
 - The site's search matches the **literal phrase**. If a long phrase returns nothing, the server retries with shorter sub-phrases and says so in a `nota` field.
 - Filtering by `estado="Vigente"` returns no results on the site itself; omit it. `Derogada` and `Modificada` work.
 - Results come 10 per page and `page` is zero-based. In the site's monthly editions endpoint the month is zero-based too (October = 9); the server handles that for you.
-- `get_gaceta_indice` (`getdatagacetasa`) returned empty responses in every test, so its behavior is unverified.
+- `search_gacetas_historicas` only covers old gacetas (the site's 1990-2008 archive); for current ones use `list_ediciones` or `search_gacetas`.
+- When nothing matches, the gaceta tools return a `mensaje` saying that no gacetas were published instead of an empty list.
 
 ## Development
 

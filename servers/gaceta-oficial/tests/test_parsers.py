@@ -1,7 +1,14 @@
 from datetime import date
 from pathlib import Path
 
-from gaceta_oficial_mcp.parsers import parse_ediciones, parse_fecha, parse_normas, parse_select_options
+from gaceta_oficial_mcp.parsers import (
+    parse_ediciones,
+    parse_fecha,
+    parse_gacetas_historicas,
+    parse_indice,
+    parse_normas,
+    parse_select_options,
+)
 
 FX = Path(__file__).parent / "fixtures"
 
@@ -56,3 +63,25 @@ def test_catalog_options():
     tipos = {o["nombre"]: o["id"] for o in parse_select_options(html, "St_edicion")}
     assert tipos["Extraordinaria"] == "3"
     assert any(o["nombre"] == "Consejo de Ministros" for o in parse_select_options(html, "Sorganismo"))
+
+
+def test_parse_gacetas_historicas():
+    r = parse_gacetas_historicas(fx("getdatagacetasa.html"))
+    assert len(r["resultados"]) == 10 and r["has_more"] and r["last_page"] == 11
+    first = r["resultados"][0]
+    assert first["fecha"].startswith("2001") and first["url"].startswith(
+        "https://www.gacetaoficial.gob.cu/es/gaceta-oficial-no"
+    )
+    assert first["descarga"] and first["indice"][0]["organismo"]
+    assert any("TRABAJO" in sec["organismo"] for r_ in r["resultados"] for sec in r_["indice"])
+
+
+def test_parse_gacetas_historicas_empty():
+    assert parse_gacetas_historicas("")["resultados"] == []
+
+
+def test_parse_indice():
+    assert parse_indice("A\nRES 1\n;B\nRES 2\nRES 3") == [
+        {"organismo": "A", "normas": ["RES 1"]},
+        {"organismo": "B", "normas": ["RES 2", "RES 3"]},
+    ]

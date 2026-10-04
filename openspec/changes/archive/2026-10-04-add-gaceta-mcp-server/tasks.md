@@ -19,7 +19,7 @@
 
 ## 5. Herramientas MCP
 - [x] 5.1 `intent.py` (hoy, ayer, este mes, mes+año)
-- [x] 5.2 Tools: `list_ediciones`, `search_normas`, `search_gacetas`, `get_gaceta_indice`, `list_catalogs`, `get_topics`, `set_topics`
+- [x] 5.2 Tools: `list_ediciones`, `search_normas`, `search_gacetas`, `search_gacetas_historicas`, `list_catalogs`, `get_topics`, `set_topics`
 - [x] 5.3 `instructions` del servidor con enrutamiento de intención y confirmación de tema
 
 ## 6. Distribución
@@ -27,3 +27,9 @@
 - [x] 6.2 CI en GitHub Actions (uv, ruff, pytest)
 - [x] 6.3 Probar `uvx --from . gaceta-oficial-mcp` (cliente MCP stdio; Inspector pendiente de prueba manual)
 - [x] 6.4 Pruebas en vivo de los escenarios de los specs
+
+## 7. Corrección: archivo histórico (antes `get_gaceta_indice`)
+- [x] 7.1 Investigar `getdatagacetasa`: pertenece a la página `/es/gacetas-oficiales-1990-2008`, sus resultados usan `.result-gacetagsa` (por eso el parser devolvía vacío) y solo hay gacetas hasta 2008
+- [x] 7.2 Parser `parse_gacetas_historicas` + `parse_indice` con fixture real y tests
+- [x] 7.3 Renombrar la herramienta a `search_gacetas_historicas` y devolver `mensaje` cuando no hay gacetas (también en `search_gacetas` y `list_ediciones`)
+- [x] 7.4 Actualizar README y CHANGELOG
