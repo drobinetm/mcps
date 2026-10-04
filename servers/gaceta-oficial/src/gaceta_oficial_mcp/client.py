@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 from typing import Any
 from urllib.parse import urlencode
 
@@ -21,8 +22,16 @@ REFERERS = {
 }
 
 
+MAX_PDF_BYTES = 50 * 1024 * 1024
+PDF_CACHE_SIZE = 4
+
+
 class GacetaError(RuntimeError):
     """Error al consultar el sitio de la Gaceta Oficial."""
+
+
+class _Transient(GacetaError):
+    """Error temporal (5xx) que merece reintento."""
 
 
 def encode_data(data: dict[str, Any]) -> list[tuple[str, str]]:
@@ -45,6 +54,7 @@ class GacetaClient:
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._retries = retries
+        self._bytes_cache: OrderedDict[str, bytes] = OrderedDict()
         self._http = httpx.AsyncClient(
             base_url=base_url,
             timeout=timeout,
@@ -88,3 +98,35 @@ class GacetaClient:
 
     async def get_page(self, path: str) -> str:
         return await self._request("GET", path)
+
+    async def get_bytes(self, url: str, max_bytes: int = MAX_PDF_BYTES) -> bytes:
+        """Descarga un binario (PDF) con reintentos, límite de tamaño y caché LRU en memoria."""
+        if url in self._bytes_cache:
+            self._bytes_cache.move_to_end(url)
+            return self._bytes_cache[url]
+        last: Exception | None = None
+        for attempt in range(self._retries):
+            try:
+                async with self._http.stream("GET", url, timeout=180) as resp:
+                    if resp.status_code >= 500:
+                        raise _Transient(f"El sitio respondió HTTP {resp.status_code}")
+                    if resp.status_code >= 400:
+                        raise GacetaError(f"HTTP {resp.status_code} al descargar {url}")
+                    size = int(resp.headers.get("content-length") or 0)
+                    if size > max_bytes:
+                        raise GacetaError(f"El archivo pesa {size // 1048576} MB (máximo {max_bytes // 1048576} MB)")
+                    chunks, total = [], 0
+                    async for chunk in resp.aiter_bytes():
+                        total += len(chunk)
+                        if total > max_bytes:
+                            raise GacetaError(f"El archivo supera {max_bytes // 1048576} MB")
+                        chunks.append(chunk)
+                data = b"".join(chunks)
+                self._bytes_cache[url] = data
+                while len(self._bytes_cache) > PDF_CACHE_SIZE:
+                    self._bytes_cache.popitem(last=False)
+                return data
+            except (httpx.TransportError, _Transient) as exc:
+                last = exc
+                await asyncio.sleep(1.5 * (attempt + 1))
+        raise GacetaError(f"No se pudo descargar {url}: {last}") from last

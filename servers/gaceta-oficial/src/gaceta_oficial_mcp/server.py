@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import io
 from collections.abc import Iterator
 from typing import Any
 
@@ -9,8 +11,15 @@ from mcp.server import MCPServer
 
 from . import intent, topics
 from .catalogs import Catalogs
-from .client import GacetaClient
-from .parsers import parse_ediciones, parse_gacetas_historicas, parse_normas
+from .client import BASE_URL, GacetaClient, GacetaError
+from .parsers import (
+    extract_norma_text,
+    parse_ediciones,
+    parse_gaceta_files,
+    parse_gacetas_historicas,
+    parse_norma_page,
+    parse_normas,
+)
 
 INSTRUCTIONS = """\
 Consulta la Gaceta Oficial de la República de Cuba (gacetaoficial.gob.cu).
@@ -29,6 +38,9 @@ PASO 2: elige la herramienta según la intención:
   'topics_' busca los temas guardados.
 - Un NÚMERO concreto de gaceta ("la Extraordinaria 92 de 2026") -> search_gacetas; gacetas
   anteriores a 2009 (con su índice) con search_gacetas_historicas.
+
+- LEER una norma completa ("muéstrame el Acuerdo 651-X", "qué dice esa resolución") -> get_norma con
+  la URL de la norma (la obtienes de cualquiera de los resultados anteriores).
 
 PASO 3, al responder: sé completo y no abrevies. Para cada gaceta escribe su 'nombre_completo'
 (p. ej. "Gaceta Oficial No. 92 Extraordinaria de 2026"), la fecha, el enlace y el PDF. Para cada
@@ -328,6 +340,75 @@ async def search_gacetas_historicas(
     result = {"total_pagina": len(parsed["resultados"]), **parsed}
     if not parsed["resultados"]:
         result["mensaje"] = NO_GACETAS + " El archivo histórico cubre solo gacetas anteriores a 2009."
+    return result
+
+
+_PDF_TEXT_CACHE: dict[str, str] = {}
+
+
+def _pdf_text(data: bytes) -> str:
+    from pypdf import PdfReader
+
+    return "\n".join((page.extract_text() or "") for page in PdfReader(io.BytesIO(data)).pages)
+
+
+async def _gaceta_text(client: GacetaClient, pdf_url: str) -> str:
+    if pdf_url not in _PDF_TEXT_CACHE:
+        data = await client.get_bytes(pdf_url)
+        _PDF_TEXT_CACHE[pdf_url] = await asyncio.to_thread(_pdf_text, data)
+        while len(_PDF_TEXT_CACHE) > 2:
+            _PDF_TEXT_CACHE.pop(next(iter(_PDF_TEXT_CACHE)))
+    return _PDF_TEXT_CACHE[pdf_url]
+
+
+@mcp.tool()
+async def get_norma(norma: str, max_chars: int = 30000, desde: int = 0) -> dict[str, Any]:
+    """Trae una norma COMPLETA: metadatos y texto íntegro (p. ej. un Acuerdo, Decreto o Resolución).
+
+    'norma' es la URL o el slug que devuelven las demás herramientas (p. ej.
+    "acuerdo-651-x-de-2026-de-consejo-de-estado"). El texto se extrae del PDF de la gaceta que la
+    publica (la primera consulta de una gaceta grande puede tardar ~15 s). 'max_chars' limita el
+    texto devuelto; si sale 'truncado', pide el resto con 'desde'. En gacetas antiguas sin PDF con
+    texto devuelve los metadatos, el enlace de descarga y un 'mensaje'.
+    """
+    client, _ = _deps()
+    slug = norma.strip().rstrip("/").rsplit("/", 1)[-1]
+    try:
+        meta = parse_norma_page(await client.get_page(f"/es/{slug}"))
+    except GacetaError as exc:
+        return {"error": f"No se pudo abrir la norma '{slug}': {exc}"}
+    if meta is None:
+        return {"error": f"'{slug}' no es una norma de la Gaceta Oficial. Usa la URL que devuelven las búsquedas."}
+    result: dict[str, Any] = {**meta, "url": f"{BASE_URL}/es/{slug}"}
+    files = (
+        parse_gaceta_files(await client.get_page(meta["gaceta_url"].replace(BASE_URL, "")))
+        if meta["gaceta_url"]
+        else {}
+    )
+    result["pdf"] = files.get("pdf")
+    result["descarga"] = files.get("descarga")
+    if not files.get("pdf") or not meta["identificador"]:
+        result["mensaje"] = "El texto íntegro no está disponible en PDF; usa el enlace de descarga de la gaceta."
+        return result
+    try:
+        text = extract_norma_text(await _gaceta_text(client, files["pdf"]), meta["identificador"])
+    except GacetaError as exc:
+        result["mensaje"] = f"No se pudo descargar el PDF de la gaceta: {exc}"
+        return result
+    if not text:
+        result["mensaje"] = (
+            "No se encontró el texto de esta norma en el PDF (puede estar escaneado); usa el enlace del PDF."
+        )
+        return result
+    chunk = text[desde : desde + max_chars]
+    result.update(
+        {
+            "texto": chunk,
+            "texto_total_caracteres": len(text),
+            "desde": desde,
+            "truncado": desde + max_chars < len(text),
+        }
+    )
     return result
 
 
