@@ -37,6 +37,14 @@ def parse_fecha(text: str) -> date | None:
     return date(int(m.group(3)), MESES[m.group(2).lower()], int(m.group(1)))
 
 
+def nombre_completo(numero: str, tipo: str, fecha: date | None, url: str | None) -> str:
+    """'Gaceta Oficial No. 92 Extraordinaria de 2026' (el año sale de la fecha o del slug)."""
+    year = fecha.year if fecha else None
+    if year is None and url and (m := re.search(r"-de-(\d{4})$", url)):
+        year = int(m[1])
+    return " ".join(p for p in [f"Gaceta Oficial No. {numero}".strip(), tipo, f"de {year}" if year else ""] if p)
+
+
 def parse_pager(tree: HTMLParser) -> dict[str, Any]:
     """Paginación base cero: página actual y última página."""
     pager = tree.css_first("ul#pagination")
@@ -78,13 +86,16 @@ def parse_ediciones(html: str) -> dict[str, Any]:
         fecha_txt = _text(block.css_first(".date-display-single"))
         fecha = parse_fecha(fecha_txt)
         numero = _text(block.css_first(".views-field-field-numero-de-gaceta .field-content"))
+        tipo = _text(block.css_first(".views-field-field-tipo-edicion-gaceta .field-content"))
+        url = abs_url(ver.attributes.get("href") if ver else None)
         items.append(
             {
+                "nombre_completo": nombre_completo(numero, tipo, fecha, url),
                 "numero": numero,
-                "tipo": _text(block.css_first(".views-field-field-tipo-edicion-gaceta .field-content")),
+                "tipo": tipo,
                 "fecha": fecha.isoformat() if fecha else None,
                 "fecha_texto": fecha_txt,
-                "url": abs_url(ver.attributes.get("href") if ver else None),
+                "url": url,
                 "pdf": abs_url(pdf.attributes.get("href") if pdf else None),
                 "normas": [
                     {"titulo": _text(a), "url": abs_url(a.attributes.get("href"))} for a in block.css(".norma-gaceta a")
@@ -129,13 +140,17 @@ def parse_gacetas_historicas(html: str) -> dict[str, Any]:
         fecha_txt = _text(block.css_first(".date-display-single"))
         fecha = parse_fecha(fecha_txt)
         indices = block.css_first(".indices")
+        numero = _text(block.css_first(".views-field-field-numero-de-gaceta .field-content"))
+        tipo = _text(block.css_first(".views-field-field-tipo-edicion-gaceta .field-content"))
+        url = abs_url(ver.attributes.get("href") if ver else None)
         items.append(
             {
-                "numero": _text(block.css_first(".views-field-field-numero-de-gaceta .field-content")),
-                "tipo": _text(block.css_first(".views-field-field-tipo-edicion-gaceta .field-content")),
+                "nombre_completo": nombre_completo(numero, tipo, fecha, url),
+                "numero": numero,
+                "tipo": tipo,
                 "fecha": fecha.isoformat() if fecha else None,
                 "fecha_texto": fecha_txt,
-                "url": abs_url(ver.attributes.get("href") if ver else None),
+                "url": url,
                 "descarga": abs_url(pdf.attributes.get("href") if pdf else None),
                 "indice": parse_indice(indices.text() if indices else ""),
             }

@@ -202,7 +202,7 @@ The server speaks MCP over **stdio** and needs no API keys or environment variab
 
 | Tool | Use it for | Site page |
 |---|---|---|
-| `list_ediciones(periodo)` | **Dates**: "which gacetas are out today", `ayer`, `este mes`, `octubre 2025`, `2026-10-02` | `/es/ediciones-del-mes` |
+| `list_ediciones(periodo, topics_)` | **Dates**: "which gacetas are out today", `ayer`, `este mes`, `octubre 2025`, `2026-10-02` | `/es/ediciones-del-mes` |
 | `search_normas(query, topics_, tipo_norma, estado, organismo, anno, numero, identificador, page)` | **Content / topic**: "gacetas about employment contracts in mipymes" | `/es/busqueda-avanzada` |
 | `search_gacetas(numero, anno, tipo_edicion, page)` | A specific gaceta **number** | `/es/busqueda-avanzada` |
 | `search_gacetas_historicas(numero, anno, tipo_edicion, texto, page)` | **Historical archive** (up to 2008): gacetas with their index of issuing bodies and norms; `texto` searches that index | `/es/gacetas-oficiales-1990-2008` |
@@ -215,7 +215,15 @@ The server instructions tell the agent how to route a request: date-based questi
 
 Default topics: **informática, contrato, trabajo, mipymes** (the site is in Spanish, so topics are Spanish keywords).
 
-Before a content search, the agent is instructed to ask whether you want a specific topic. If you don't, `search_normas` with no arguments searches every saved topic and merges the results, tagging each one with the topic that matched. Topics are stored in `~/.config/gaceta-oficial-mcp/topics.json` (override the directory with `GACETA_MCP_CONFIG_DIR`). `set_topics([])` restores the defaults.
+Before **any** search (by date or by content) the agent is instructed to ask whether you want a specific topic. If you don't, the saved topics are used:
+- `search_normas` with no arguments searches every saved topic, merges the results and tags each one with the topic that matched.
+- `list_ediciones(periodo, topics_)` returns all the gacetas of the period and marks which of their norms match your topics (cross-checking the site's advanced search for that year), listing them in `normas_relevantes` with their summary.
+
+Topics are stored in `~/.config/gaceta-oficial-mcp/topics.json` (override the directory with `GACETA_MCP_CONFIG_DIR`). `set_topics([])` restores the defaults.
+
+### Full names in answers
+
+Every gaceta comes with a `nombre_completo` (e.g. `Gaceta Oficial No. 92 Extraordinaria de 2026`) and every norm with its full title (e.g. `Acuerdo 651-X de 2026 de Consejo de Estado`) and link, and the server instructions tell the agent to present them unabbreviated so you can locate them.
 
 ### Known issues and site quirks
 

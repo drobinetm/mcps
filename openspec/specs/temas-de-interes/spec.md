@@ -20,12 +20,12 @@ El servidor SHALL permitir cambiar los temas con `set_topics` y persistirlos en 
 - **THEN** las búsquedas posteriores sin tema explícito usan esos temas tras reiniciar el servidor
 
 ### Requirement: Confirmación previa de tema
-Las `instructions` del servidor y las descripciones de las herramientas SHALL ordenar al agente preguntar al usuario, antes de una búsqueda por contenido, si desea un tema específico; si no lo desea, se usan los temas guardados.
+Las `instructions` del servidor y las descripciones de las herramientas SHALL ordenar al agente preguntar al usuario, antes de CUALQUIER búsqueda (por fecha o por contenido), si desea un tema específico; si no lo desea, se usan los temas guardados.
 
 #### Scenario: Usuario sin tema
 - **WHEN** el usuario responde que no tiene un tema específico
-- **THEN** se buscan los temas guardados, una búsqueda por tema, con resultados deduplicados y etiquetados por tema
+- **THEN** se usan los temas guardados: `search_normas` hace una búsqueda por tema con resultados deduplicados y etiquetados, y `list_ediciones` marca las normas que coinciden con ellos
 
 #### Scenario: Consulta por fecha
-- **WHEN** la consulta es solo por fecha
-- **THEN** no se exige tema y se usa `list_ediciones`
+- **WHEN** la consulta es por fecha ("qué gacetas existen hoy")
+- **THEN** el agente pregunta primero por el tema y luego llama a `list_ediciones` con los temas elegidos
