@@ -107,3 +107,37 @@ def parse_select_options(html: str, select_id: str) -> list[dict[str, str]]:
             continue
         out.append({"id": value, "nombre": _text(opt)})
     return out
+
+
+def parse_indice(text: str) -> list[dict[str, Any]]:
+    """Índice de una gaceta histórica: secciones separadas por ';', primera línea = organismo."""
+    sections = []
+    for chunk in text.split(";"):
+        lines = [ln.strip() for ln in chunk.splitlines() if ln.strip()]
+        if lines:
+            sections.append({"organismo": lines[0], "normas": lines[1:]})
+    return sections
+
+
+def parse_gacetas_historicas(html: str) -> dict[str, Any]:
+    """Resultados de ``getdatagacetasa`` (gacetas 1990-2008): ``.result-gacetagsa`` con su índice."""
+    tree = HTMLParser(html or "")
+    items = []
+    for block in tree.css("div.result-gacetagsa"):
+        ver = block.css_first(".views-field-view-node a")
+        pdf = block.css_first(".views-field-field-fichero-gaceta a")
+        fecha_txt = _text(block.css_first(".date-display-single"))
+        fecha = parse_fecha(fecha_txt)
+        indices = block.css_first(".indices")
+        items.append(
+            {
+                "numero": _text(block.css_first(".views-field-field-numero-de-gaceta .field-content")),
+                "tipo": _text(block.css_first(".views-field-field-tipo-edicion-gaceta .field-content")),
+                "fecha": fecha.isoformat() if fecha else None,
+                "fecha_texto": fecha_txt,
+                "url": abs_url(ver.attributes.get("href") if ver else None),
+                "descarga": abs_url(pdf.attributes.get("href") if pdf else None),
+                "indice": parse_indice(indices.text() if indices else ""),
+            }
+        )
+    return {"resultados": items, **parse_pager(tree)}

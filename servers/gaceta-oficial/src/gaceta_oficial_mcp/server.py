@@ -10,7 +10,7 @@ from mcp.server import MCPServer
 from . import intent, topics
 from .catalogs import Catalogs
 from .client import GacetaClient
-from .parsers import parse_ediciones, parse_normas
+from .parsers import parse_ediciones, parse_gacetas_historicas, parse_normas
 
 INSTRUCTIONS = """\
 Consulta la Gaceta Oficial de la República de Cuba (gacetaoficial.gob.cu).
@@ -20,8 +20,8 @@ Elige la herramienta según la intención del usuario:
   (equivale a la página ediciones-del-mes). No hace falta preguntar por un tema.
 - CONTENIDO o tema ("qué gacetas hablan del contrato de trabajo en las mipymes", normas de
   un organismo, tipo de norma) -> search_normas (equivale a busqueda-avanzada).
-- Un NÚMERO concreto de gaceta ("la Extraordinaria 92 de 2026") -> search_gacetas; su sumario
-  con get_gaceta_indice.
+- Un NÚMERO concreto de gaceta ("la Extraordinaria 92 de 2026") -> search_gacetas; gacetas anteriores a 2009
+  (con su índice) con search_gacetas_historicas.
 
 ANTES de una búsqueda por contenido sin tema claro, pregunta al usuario si desea buscar por un
 tema específico. Si responde que no, llama a search_normas sin 'query' y sin 'topics': usará los
@@ -45,6 +45,7 @@ def _deps() -> tuple[GacetaClient, Catalogs]:
 
 
 MAX_MONTH_PAGES = 10
+NO_GACETAS = "No hay gacetas publicadas que coincidan con la búsqueda."
 STOPWORDS = {
     "de",
     "del",
@@ -130,7 +131,7 @@ async def list_ediciones(periodo: str = "hoy") -> dict[str, Any]:
             if items:
                 latest = items[0]
                 break
-        result["mensaje"] = "No hay ediciones en ese periodo."
+        result["mensaje"] = "No hay gacetas publicadas en ese periodo."
         result["ultima_edicion_disponible"] = latest
     return result
 
@@ -244,18 +245,26 @@ async def search_gacetas(
         },
     )
     parsed = parse_ediciones(html)
-    return {"total_pagina": len(parsed["resultados"]), **parsed}
+    result = {"total_pagina": len(parsed["resultados"]), **parsed}
+    if not parsed["resultados"]:
+        result["mensaje"] = NO_GACETAS
+    return result
 
 
 @mcp.tool()
-async def get_gaceta_indice(
+async def search_gacetas_historicas(
     numero: str | None = None,
     anno: int | None = None,
     tipo_edicion: str | None = None,
     texto: str | None = None,
     page: int = 0,
 ) -> dict[str, Any]:
-    """Índice/sumario de una gaceta (normas que contiene), opcionalmente filtrado por 'texto'."""
+    """Busca en el archivo histórico de gacetas (aprox. 1990-2008; página 'gacetas-oficiales-1990-2008').
+
+    Cada gaceta incluye su ÍNDICE (organismos y normas que contiene) y 'texto' busca dentro de ese
+    índice. Úsala solo para gacetas antiguas; para las actuales usa list_ediciones/search_gacetas.
+    Si no hay gacetas que coincidan, devuelve 'mensaje' indicándolo.
+    """
     client, catalogs = _deps()
     html = await client.post_ajax(
         "getdatagacetasa",
@@ -268,10 +277,11 @@ async def get_gaceta_indice(
             "buscar": 1,
         },
     )
-    parsed = parse_ediciones(html)
+    parsed = parse_gacetas_historicas(html)
+    result = {"total_pagina": len(parsed["resultados"]), **parsed}
     if not parsed["resultados"]:
-        parsed = {**parsed, **parse_normas(html)}
-    return parsed
+        result["mensaje"] = NO_GACETAS + " El archivo histórico cubre solo gacetas anteriores a 2009."
+    return result
 
 
 @mcp.tool()

@@ -5,7 +5,7 @@ El servidor SHALL exponer `list_ediciones` que consulta `POST /es/getedicionesga
 
 #### Scenario: Gacetas de hoy
 - **WHEN** el usuario pregunta "¿qué gacetas existen hoy?"
-- **THEN** se consulta el mes y año actuales y se filtran las ediciones cuya fecha es la de hoy; si no hay ninguna se indica explícitamente y se ofrece la última edición disponible
+- **THEN** se consulta el mes y año actuales y se filtran las ediciones cuya fecha es la de hoy; si no hay ninguna se devuelve el mensaje "No hay gacetas publicadas en ese periodo" y se ofrece la última edición disponible
 
 #### Scenario: Mes y año en lenguaje natural
 - **WHEN** el usuario pide "octubre de 2025"
