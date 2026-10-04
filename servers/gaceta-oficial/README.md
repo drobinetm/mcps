@@ -111,6 +111,91 @@ Same JSON in `.vscode/mcp.json`, but with `"servers"` instead of `"mcpServers"` 
 }
 ```
 
+### Cline (and Roo Code / Kilo Code)
+
+Open the MCP servers panel, choose **Configure MCP Servers**, and add the entry to `cline_mcp_settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "gaceta-oficial": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/drobinetm/mcps#subdirectory=servers/gaceta-oficial", "gaceta-oficial-mcp"],
+      "disabled": false
+    }
+  }
+}
+```
+
+Roo Code and Kilo Code, which are Cline forks, use the same `mcpServers` format in their own MCP settings file.
+
+### Zed
+
+Add it to your Zed `settings.json` (`zed: open settings file`) under `context_servers`, or use **Settings → AI → MCP Servers → Add Server**:
+
+```json
+{
+  "context_servers": {
+    "gaceta-oficial": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/drobinetm/mcps#subdirectory=servers/gaceta-oficial", "gaceta-oficial-mcp"]
+    }
+  }
+}
+```
+
+### Continue
+
+Create `.continue/mcpServers/gaceta-oficial.yaml` in your workspace (MCP servers only work in agent mode):
+
+```yaml
+name: gaceta-oficial
+version: 0.0.1
+schema: v1
+mcpServers:
+  - name: gaceta-oficial
+    type: stdio
+    command: uvx
+    args:
+      - --from
+      - git+https://github.com/drobinetm/mcps#subdirectory=servers/gaceta-oficial
+      - gaceta-oficial-mcp
+```
+
+### Goose
+
+Run `goose configure`, choose **Add Extension → Command-line Extension**, name it `gaceta-oficial` and use this as the command:
+
+```
+uvx --from git+https://github.com/drobinetm/mcps#subdirectory=servers/gaceta-oficial gaceta-oficial-mcp
+```
+
+Or add it to `~/.config/goose/config.yaml`:
+
+```yaml
+extensions:
+  gaceta-oficial:
+    name: gaceta-oficial
+    type: stdio
+    enabled: true
+    cmd: uvx
+    args:
+      - --from
+      - git+https://github.com/drobinetm/mcps#subdirectory=servers/gaceta-oficial
+      - gaceta-oficial-mcp
+    envs: {}
+```
+
+### Any other MCP client
+
+The server speaks MCP over **stdio** and needs no API keys or environment variables. In any client that asks for a command, use:
+
+| Field | Value |
+|---|---|
+| Transport | `stdio` |
+| Command | `uvx` |
+| Arguments | `--from`, `git+https://github.com/drobinetm/mcps#subdirectory=servers/gaceta-oficial`, `gaceta-oficial-mcp` |
+
 > Each agent's configuration format may change; check its documentation if the server does not load.
 
 ## Tools
