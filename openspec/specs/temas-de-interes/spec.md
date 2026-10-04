@@ -1,7 +1,7 @@
 # temas-de-interes Specification
 
 ## Purpose
-TBD - created by archiving change add-gaceta-mcp-server. Update Purpose after archive.
+Gestionar los temas de interés del usuario (con valores por defecto) y exigir confirmación de tema antes de buscar por contenido.
 
 ## Requirements
 

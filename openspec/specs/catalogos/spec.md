@@ -1,7 +1,7 @@
 # catalogos Specification
 
 ## Purpose
-TBD - created by archiving change add-gaceta-mcp-server. Update Purpose after archive.
+Exponer los valores válidos (tipos de edición, tipos de norma, estados, organismos) del sitio para mapear lenguaje natural a IDs.
 
 ## Requirements
 

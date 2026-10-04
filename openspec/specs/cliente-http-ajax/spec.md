@@ -1,7 +1,7 @@
 # cliente-http-ajax Specification
 
 ## Purpose
-TBD - created by archiving change add-gaceta-mcp-server. Update Purpose after archive.
+Reproducir las llamadas AJAX del sitio gacetaoficial.gob.cu y convertir los fragmentos HTML en datos estructurados.
 
 ## Requirements
 

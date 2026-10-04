@@ -1,7 +1,7 @@
 # busqueda-normas Specification
 
 ## Purpose
-TBD - created by archiving change add-gaceta-mcp-server. Update Purpose after archive.
+Buscar normas jurídicas por contenido, tipo, estado u organismo en la búsqueda avanzada del sitio.
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # ediciones-por-fecha Specification
 
 ## Purpose
-TBD - created by archiving change add-gaceta-mcp-server. Update Purpose after archive.
+Listar las gacetas publicadas en una fecha o periodo (página ediciones-del-mes).
 
 ## Requirements
 

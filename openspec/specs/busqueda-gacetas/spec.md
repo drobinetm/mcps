@@ -1,7 +1,7 @@
 # busqueda-gacetas Specification
 
 ## Purpose
-TBD - created by archiving change add-gaceta-mcp-server. Update Purpose after archive.
+Buscar gacetas por número, año y tipo, y consultar el archivo histórico con su índice; informar cuando no hay gacetas.
 
 ## Requirements
 
