@@ -10,9 +10,35 @@ An [MCP](https://modelcontextprotocol.io) server (stdio) for searching the **Gac
 
 The site has no public API, so this server replays the AJAX calls its own search forms make (`POST /es/getdata`, `getdatagaceta`, `getedicionesgaceta`, `getdatagacetasa`) and turns the returned HTML into structured JSON.
 
+## Requirements
+
+You need [`uv`](https://docs.astral.sh/uv/) on the machine where the agent runs; it provides the `uvx` command. You do **not** need to install Python (uv downloads 3.11+ if missing), clone this repo, or install the dependencies manually.
+
+**Linux / macOS**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Windows (PowerShell)**
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Other options: `brew install uv`, `winget install --id=astral-sh.uv -e` or `pipx install uv`.
+
+Restart your terminal and check it works:
+
+```bash
+uvx --version
+```
+
+> **"command not found" in the agent?** GUI agents (Claude Desktop, Cursor, VS Code) may not see the `PATH` of your terminal. Use the full path to `uvx` in the config: run `which uvx` (Linux/macOS) or `where uvx` (Windows) and put that value in `"command"`, e.g. `"/home/you/.local/bin/uvx"` or `"C:\\Users\\you\\.local\\bin\\uvx.exe"`.
+
 ## Installation
 
-**Requirement:** [`uv`](https://docs.astral.sh/uv/getting-started/installation/) (it provides `uvx`). There is nothing to clone: `uvx` downloads only the `servers/gaceta-oficial` folder of the [drobinetm/mcps](https://github.com/drobinetm/mcps) monorepo.
+There is nothing to clone: `uvx` downloads only the `servers/gaceta-oficial` folder of the [drobinetm/mcps](https://github.com/drobinetm/mcps) monorepo.
 
 Quick check that it starts:
 
