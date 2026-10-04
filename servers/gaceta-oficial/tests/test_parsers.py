@@ -85,3 +85,10 @@ def test_parse_indice():
         {"organismo": "A", "normas": ["RES 1"]},
         {"organismo": "B", "normas": ["RES 2", "RES 3"]},
     ]
+
+
+def test_nombre_completo():
+    first = parse_ediciones(fx("getedicionesgaceta.html"))["resultados"][0]
+    assert first["nombre_completo"] == "Gaceta Oficial No. 92 Extraordinaria de 2026"
+    hist = parse_gacetas_historicas(fx("getdatagacetasa.html"))["resultados"][0]
+    assert hist["nombre_completo"] == "Gaceta Oficial No. 92 Ordinaria de 2001"

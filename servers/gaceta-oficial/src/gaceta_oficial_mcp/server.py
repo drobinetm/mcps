@@ -15,19 +15,25 @@ from .parsers import parse_ediciones, parse_gacetas_historicas, parse_normas
 INSTRUCTIONS = """\
 Consulta la Gaceta Oficial de la República de Cuba (gacetaoficial.gob.cu).
 
-Elige la herramienta según la intención del usuario:
-- FECHA o periodo ("qué gacetas hay hoy", "de este mes", "octubre 2025") -> list_ediciones
-  (equivale a la página ediciones-del-mes). No hace falta preguntar por un tema.
-- CONTENIDO o tema ("qué gacetas hablan del contrato de trabajo en las mipymes", normas de
-  un organismo, tipo de norma) -> search_normas (equivale a busqueda-avanzada).
-- Un NÚMERO concreto de gaceta ("la Extraordinaria 92 de 2026") -> search_gacetas; gacetas anteriores a 2009
-  (con su índice) con search_gacetas_historicas.
+PASO 1 (siempre, ANTES de cualquier búsqueda, sea por fecha o por contenido): pregunta al usuario
+si desea buscar por un tema específico. Si ya indicó un tema en su mensaje, úsalo sin preguntar.
+Si responde que no, usa los temas guardados (get_topics; por defecto: informática, contrato,
+trabajo, mipymes). Si quiere cambiarlos de forma permanente, usa set_topics.
 
-ANTES de una búsqueda por contenido sin tema claro, pregunta al usuario si desea buscar por un
-tema específico. Si responde que no, llama a search_normas sin 'query' y sin 'topics': usará los
-temas guardados (get_topics; por defecto: informática, contrato, trabajo, mipymes). Si el
-usuario quiere cambiarlos de forma permanente, usa set_topics.
-Presenta siempre el título, el tipo/número/fecha y el enlace de cada resultado.
+PASO 2: elige la herramienta según la intención:
+- FECHA o periodo ("qué gacetas hay hoy", "de este mes", "octubre 2025") -> list_ediciones
+  (página ediciones-del-mes), pasando los temas elegidos en 'topics_' para marcar las normas
+  relevantes.
+- CONTENIDO o tema ("qué gacetas hablan del contrato de trabajo en las mipymes", normas de
+  un organismo, tipo de norma) -> search_normas (página busqueda-avanzada). Sin 'query' ni
+  'topics_' busca los temas guardados.
+- Un NÚMERO concreto de gaceta ("la Extraordinaria 92 de 2026") -> search_gacetas; gacetas
+  anteriores a 2009 (con su índice) con search_gacetas_historicas.
+
+PASO 3, al responder: sé completo y no abrevies. Para cada gaceta escribe su 'nombre_completo'
+(p. ej. "Gaceta Oficial No. 92 Extraordinaria de 2026"), la fecha, el enlace y el PDF. Para cada
+norma escribe su título COMPLETO (p. ej. "Acuerdo 651-X de 2026 de Consejo de Estado") con su
+enlace, y su resumen si lo hay. Destaca primero las normas relevantes para los temas del usuario.
 """
 
 mcp = MCPServer("gaceta-oficial", instructions=INSTRUCTIONS)
@@ -101,15 +107,54 @@ async def collect_ediciones(client: GacetaClient, period: intent.Period) -> list
     return found
 
 
+MAX_TOPIC_PAGES = 5
+
+
+async def mark_topics(
+    client: GacetaClient, catalogs: Catalogs, period: intent.Period, ediciones: list[dict[str, Any]], topics_: list[str]
+) -> dict[str, Any]:
+    """Marca las normas de las ediciones que la búsqueda avanzada devuelve para cada tema."""
+    by_url = {n["url"]: n for e in ediciones for n in e["normas"] if n["url"]}
+    relevant: dict[str, dict[str, Any]] = {}
+    if by_url:
+        for topic in topics_:
+            for page in range(MAX_TOPIC_PAGES):
+                res = await _search_normas_once(
+                    client, catalogs, texto=topic, tipo_norma=None, estado=None, organismo=None,
+                    anno=period.end.year, numero=None, identificador=None, page=page,
+                )  # fmt: skip
+                for item in res["resultados"]:
+                    norma = by_url.get(item["url"])
+                    if norma is None:
+                        continue
+                    if topic not in norma.setdefault("temas", []):
+                        norma["temas"].append(topic)
+                    norma["resumen"] = item["resumen"]
+                    relevant.setdefault(item["url"], norma)
+                if not res["has_more"] or set(by_url) <= set(relevant):
+                    break
+    out: dict[str, Any] = {"temas_consultados": topics_}
+    out["normas_relevantes"] = [
+        {**n, "gaceta": next(e["nombre_completo"] for e in ediciones if n in e["normas"])} for n in relevant.values()
+    ]
+    if not relevant:
+        out["mensaje_temas"] = "Ninguna norma de este periodo coincide con los temas consultados."
+    return out
+
+
 @mcp.tool()
-async def list_ediciones(periodo: str = "hoy") -> dict[str, Any]:
+async def list_ediciones(periodo: str = "hoy", topics_: list[str] | None = None) -> dict[str, Any]:
     """Lista las gacetas publicadas en una fecha o periodo (página 'ediciones-del-mes').
 
     Úsala cuando el usuario pregunte por FECHAS: "qué gacetas hay hoy", "ayer", "esta semana",
     "este mes", "mes pasado", "octubre 2025", "2026-10-02" o "02/10/2026".
-    Devuelve tipo, número, fecha, URL, PDF y las normas que contiene cada edición.
+    Antes de llamarla pregunta al usuario si quiere un tema específico; pasa los temas elegidos
+    (o los guardados, ver get_topics) en 'topics_' para marcar las normas relevantes.
+    Devuelve por gaceta: nombre_completo, tipo, número, fecha, URL, PDF y todas sus normas con
+    título completo y URL. Con 'topics_', cada norma coincidente lleva 'temas' y 'resumen', y se
+    listan aparte en 'normas_relevantes'.
     """
-    client, _ = _deps()
+    client, catalogs = _deps()
     period = intent.parse_period(periodo)
     ediciones = await collect_ediciones(client, period)
     result: dict[str, Any] = {
@@ -119,6 +164,8 @@ async def list_ediciones(periodo: str = "hoy") -> dict[str, Any]:
         "total": len(ediciones),
         "ediciones": ediciones,
     }
+    if topics_ and ediciones:
+        result.update(await mark_topics(client, catalogs, period, ediciones, topics_))
     if not ediciones:
         latest = None
         for mes, anno in intent.Period(period.start, period.end, "").months[:1] + [

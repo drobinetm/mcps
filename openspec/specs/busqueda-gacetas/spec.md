@@ -29,3 +29,10 @@ Todas las herramientas que listan o buscan gacetas (`list_ediciones`, `search_ga
 #### Scenario: Sin gacetas
 - **WHEN** no existen gacetas para el periodo o los criterios pedidos
 - **THEN** la respuesta incluye `mensaje: "No hay gacetas publicadas ..."` y `total` igual a 0
+
+### Requirement: Nombre completo de la gaceta
+Toda gaceta devuelta por `list_ediciones`, `search_gacetas` y `search_gacetas_historicas` SHALL incluir `nombre_completo` con el formato "Gaceta Oficial No. {número} {tipo} de {año}".
+
+#### Scenario: Gaceta extraordinaria
+- **WHEN** se devuelve la edición Extraordinaria número 92 del 2 de octubre de 2026
+- **THEN** `nombre_completo` es "Gaceta Oficial No. 92 Extraordinaria de 2026"
