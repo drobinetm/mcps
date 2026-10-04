@@ -206,6 +206,7 @@ The server speaks MCP over **stdio** and needs no API keys or environment variab
 | `search_normas(query, topics_, tipo_norma, estado, organismo, anno, numero, identificador, page)` | **Content / topic**: "gacetas about employment contracts in mipymes" | `/es/busqueda-avanzada` |
 | `search_gacetas(numero, anno, tipo_edicion, page)` | A specific gaceta **number** | `/es/busqueda-avanzada` |
 | `search_gacetas_historicas(numero, anno, tipo_edicion, texto, page)` | **Historical archive** (up to 2008): gacetas with their index of issuing bodies and norms; `texto` searches that index | `/es/gacetas-oficiales-1990-2008` |
+| `get_norma(norma, max_chars, desde)` | **Read a full norm**: metadata plus the complete text of an Acuerdo, Decreto, Resolución... | norm page + the gaceta's PDF |
 | `list_catalogs()` | Valid IDs for edition types, norm types, statuses and issuing bodies | `/es/busqueda-avanzada` |
 | `get_topics()` / `set_topics(new_topics)` | Read / change your topics of interest | local file |
 
@@ -224,6 +225,12 @@ Topics are stored in `~/.config/gaceta-oficial-mcp/topics.json` (override the di
 ### Full names in answers
 
 Every gaceta comes with a `nombre_completo` (e.g. `Gaceta Oficial No. 92 Extraordinaria de 2026`) and every norm with its full title (e.g. `Acuerdo 651-X de 2026 de Consejo de Estado`) and link, and the server instructions tell the agent to present them unabbreviated so you can locate them.
+
+### Reading a full norm
+
+The site's page for each norm only shows metadata and a one-line summary; the full text exists only inside the PDF of the gaceta that published it. `get_norma` takes the norm URL (or slug) returned by the other tools, downloads that gaceta's PDF, and extracts the section that starts at the norm's identifier (e.g. `GOC-2026-594-EX92`) and ends at the next one. It returns the identifier, number, year, summary, keywords, norms it repeals/is modified by, the gaceta, and the text. Long texts are cut at `max_chars` (default 30000) with `truncado: true`; ask for the rest with `desde`.
+
+Notes: the first call for a big gaceta can take ~15 s (a 300-page PDF is downloaded and parsed); PDFs are cached in memory afterwards. Old gacetas that only offer a `.rar` or a scanned PDF have no extractable text, so you get the download link and a `mensaje` instead.
 
 ### Known issues and site quirks
 

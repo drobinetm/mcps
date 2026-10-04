@@ -22,3 +22,10 @@ El cliente SHALL convertir los fragmentos HTML en estructuras tipadas, con URLs 
 #### Scenario: Respuesta vacía
 - **WHEN** el endpoint devuelve cuerpo vacío o "No se encontraron resultados"
 - **THEN** el resultado es una lista vacía sin error
+
+### Requirement: Descarga de PDFs
+El cliente SHALL descargar documentos PDF de la gaceta con reintentos, timeout ampliado y un tamaño máximo (50 MB), y SHALL cachear en memoria los PDFs recientes para no repetir la descarga.
+
+#### Scenario: PDF muy grande
+- **WHEN** el PDF supera el tamaño máximo
+- **THEN** se informa del enlace de descarga en lugar de procesarlo

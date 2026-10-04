@@ -156,3 +156,65 @@ def parse_gacetas_historicas(html: str) -> dict[str, Any]:
             }
         )
     return {"resultados": items, **parse_pager(tree)}
+
+
+def _field_items(tree: HTMLParser, name: str) -> list[str]:
+    out = []
+    for node in tree.css(f"div.field-name-{name} .field-item"):
+        text = _text(node)
+        if text and not text.lower().startswith("no existen referencias"):
+            out.append(text)
+    return out
+
+
+def parse_norma_page(html: str) -> dict[str, Any] | None:
+    """Metadatos de la página de una norma (``/es/<slug>``); None si no es una norma."""
+    tree = HTMLParser(html or "")
+    if tree.css_first("div.node-norma-juridica") is None:
+        return None
+    title = _text(tree.css_first("title")).removesuffix("| Gaceta Oficial").strip()
+    gaceta = tree.css_first("div.field-name-field-gaceta-oficial-norma a")
+    one = lambda name: (_field_items(tree, name) or [""])[0]
+    return {
+        "titulo": title,
+        "identificador": one("field-identificador-de-norma"),
+        "numero": one("field-numero-v"),
+        "anno": one("field-anno-norma"),
+        "resumen": one("body").removeprefix("Resumen:").strip(),
+        "palabras_clave": [_text(a) for a in tree.css("div.field-name-field-palabras-claves-norma-ju a")],
+        "deroga": _field_items(tree, "field-normas-deroga-norma"),
+        "modificada_por": _field_items(tree, "field-normas-que-la-modifican"),
+        "derogada_por": _field_items(tree, "field-norma-que-la-deroga"),
+        "gaceta_nombre": _text(gaceta) if gaceta else None,
+        "gaceta_url": abs_url(gaceta.attributes.get("href")) if gaceta else None,
+    }
+
+
+def parse_gaceta_files(html: str) -> dict[str, str | None]:
+    """Enlaces de descarga de la página de una gaceta: primer PDF y primer adjunto de cualquier tipo."""
+    tree = HTMLParser(html or "")
+    files = [a.attributes["href"] for a in tree.css("a[href]") if "/sites/default/files/" in a.attributes["href"]]
+    pdf = next((h for h in files if h.lower().endswith(".pdf")), None)
+    return {"pdf": abs_url(pdf), "descarga": abs_url(pdf or (files[0] if files else None))}
+
+
+_ID_LINE = re.compile(r"(?m)^[ \t]*(GOC-\d{4}-\d+-[A-Z]+\d+)[ \t]*$")
+_NOISE = [
+    re.compile(r"(?m)^[ \t]*Gaceta Oficial de la Rep[uú]blica[ \t]*$\n?"),
+    re.compile(r"(?m)^[ \t]*\d{2}/\d{2}/\d{4}[ \t]*GOC-\d{4}-[A-Z]+\d+[ \t]*$\n?"),
+    re.compile(r"(?m)^[ \t]*\d{3,5}[ \t]*$\n?"),
+]
+
+
+def extract_norma_text(full_text: str, identificador: str) -> str | None:
+    """Texto de la norma: desde la línea con su identificador hasta el identificador siguiente."""
+    marks = list(_ID_LINE.finditer(full_text))
+    for i, m in enumerate(marks):
+        if m.group(1) == identificador:
+            end = marks[i + 1].start() if i + 1 < len(marks) else len(full_text)
+            text = full_text[m.end() : end]
+            for noise in _NOISE:
+                text = noise.sub("", text)
+            text = re.sub(r"(?<=[a-záéíóúñü]) ?-\n(?=[a-záéíóúñü])", "", text)
+            return text.strip() or None
+    return None
